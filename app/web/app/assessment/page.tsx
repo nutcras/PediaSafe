@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Activity, ClipboardList, Loader2 } from 'lucide-react';
+import { Activity, CalendarIcon, ClipboardList, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -14,11 +14,14 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { formatAge } from '@/lib/age';
 import {
   DOMAINS,
   TEACHING_ITEMS,
@@ -31,7 +34,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 interface PatientInfo {
   hn: string;
   patientName: string;
-  age: string;
+  dob: string; // YYYY-MM-DD
   assessmentDate: string;
   assessorName: string;
   caregiverPhone: string;
@@ -40,18 +43,39 @@ interface PatientInfo {
 const EMPTY_INFO: PatientInfo = {
   hn: '',
   patientName: '',
-  age: '',
+  dob: '',
   assessmentDate: new Date().toISOString().slice(0, 10),
   assessorName: '',
   caregiverPhone: '',
 };
 
+// Local-date helpers (avoid UTC shifting a calendar selection by a day).
+function toISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function fromISODate(iso: string): Date {
+  return new Date(`${iso}T00:00:00`);
+}
+function formatDateDisplay(iso: string): string {
+  return fromISODate(iso).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 export default function AssessmentPage() {
   const router = useRouter();
   const [info, setInfo] = useState<PatientInfo>(EMPTY_INFO);
+  const [dobOpen, setDobOpen] = useState(false);
+  const [assessmentOpen, setAssessmentOpen] = useState(false);
   const [domains, setDomains] = useState<Partial<Record<DomainKey, number>>>({});
   const [teaching, setTeaching] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const today = new Date();
+  const earliestDob = new Date(today.getFullYear() - 18, 0, 1);
+  const earliestAssessment = new Date(today.getFullYear() - 2, 0, 1);
 
   // ── Reactive scoring ────────────────────────────────────────────────────────
   const answeredCount = Object.keys(domains).length;
@@ -148,21 +172,86 @@ export default function AssessmentPage() {
                     placeholder="e.g. HN-67-0012"
                   />
                 </Field>
-                <Field id="age" label="Age">
-                  <Input
-                    id="age"
-                    value={info.age}
-                    onChange={(e) => setField('age', e.target.value)}
-                    placeholder="e.g. 2 yr / 8 months"
-                  />
+                <Field id="dob" label="Date of Birth">
+                  <Popover open={dobOpen} onOpenChange={setDobOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="dob"
+                        type="button"
+                        variant="outline"
+                        className={cn('w-full justify-start font-normal', !info.dob && 'text-muted-foreground')}
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                        {info.dob ? formatDateDisplay(info.dob) : 'Select date of birth'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        captionLayout="dropdown"
+                        startMonth={earliestDob}
+                        endMonth={today}
+                        defaultMonth={info.dob ? fromISODate(info.dob) : today}
+                        selected={info.dob ? fromISODate(info.dob) : undefined}
+                        onSelect={(d) => {
+                          if (d) {
+                            setField('dob', toISODate(d));
+                            setDobOpen(false);
+                          }
+                        }}
+                        disabled={{ after: today }}
+                        className="p-3"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {info.dob && (
+                    <p className="text-xs text-muted-foreground">
+                      Age:{' '}
+                      <span className="font-medium text-foreground">{formatAge(info.dob)}</span>
+                    </p>
+                  )}
                 </Field>
                 <Field id="assessmentDate" label="Assessment Date">
-                  <Input
-                    id="assessmentDate"
-                    type="date"
-                    value={info.assessmentDate}
-                    onChange={(e) => setField('assessmentDate', e.target.value)}
-                  />
+                  <Popover open={assessmentOpen} onOpenChange={setAssessmentOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="assessmentDate"
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          'w-full justify-start font-normal',
+                          !info.assessmentDate && 'text-muted-foreground',
+                        )}
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                        {info.assessmentDate
+                          ? formatDateDisplay(info.assessmentDate)
+                          : 'Select assessment date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        captionLayout="dropdown"
+                        startMonth={earliestAssessment}
+                        endMonth={today}
+                        defaultMonth={
+                          info.assessmentDate ? fromISODate(info.assessmentDate) : today
+                        }
+                        selected={
+                          info.assessmentDate ? fromISODate(info.assessmentDate) : undefined
+                        }
+                        onSelect={(d) => {
+                          if (d) {
+                            setField('assessmentDate', toISODate(d));
+                            setAssessmentOpen(false);
+                          }
+                        }}
+                        disabled={{ after: today }}
+                        className="p-3"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </Field>
                 <Field id="assessorName" label="Assessor Name">
                   <Input

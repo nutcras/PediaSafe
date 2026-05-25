@@ -16,7 +16,7 @@ export type DomainKey = keyof DomainScores;
 export interface AssessmentInput {
   hn: string;
   patientName: string;
-  age: string;
+  dob: string; // date of birth, YYYY-MM-DD — age is derived from this
   assessmentDate: string; // YYYY-MM-DD
   assessorName: string;
   caregiverPhone: string;

@@ -24,7 +24,7 @@ export interface DomainScores {
 export interface AssessmentInput {
   hn: string;
   patientName: string;
-  age: string;
+  dob: string; // date of birth, YYYY-MM-DD — age is derived from this
   assessmentDate: string; // YYYY-MM-DD
   assessorName: string;
   caregiverPhone: string;
@@ -81,19 +81,19 @@ function seed(input: AssessmentInput): void {
 }
 
 seed({
-  hn: 'HN-67-0012', patientName: 'Nong Mali', age: '2 yr',
+  hn: 'HN-67-0012', patientName: 'Nong Mali', dob: '2024-05-20',
   assessmentDate: '2026-05-20', assessorName: 'Nurse Ratchada', caregiverPhone: '081-234-5678',
   domains: { clinicalSeverity: 0, hostFactors: 1, caregiverCompetency: 0, environment: 1 },
   teachingCompleted: ['medication', 'danger_signs', 'tepid_sponging', 'chest_percussion', 'avoid_smoking'],
 });
 seed({
-  hn: 'HN-67-0033', patientName: 'Nong Phume', age: '8 months',
+  hn: 'HN-67-0033', patientName: 'Nong Phume', dob: '2025-09-22',
   assessmentDate: '2026-05-22', assessorName: 'Nurse Ratchada', caregiverPhone: '089-555-1212',
   domains: { clinicalSeverity: 2, hostFactors: 2, caregiverCompetency: 1, environment: 1 },
   teachingCompleted: ['medication', 'danger_signs'],
 });
 seed({
-  hn: 'HN-67-0041', patientName: 'Nong Achara', age: '4 yr',
+  hn: 'HN-67-0041', patientName: 'Nong Achara', dob: '2022-05-23',
   assessmentDate: '2026-05-23', assessorName: 'Nurse Somchai', caregiverPhone: '062-777-8899',
   domains: { clinicalSeverity: 3, hostFactors: 3, caregiverCompetency: 2, environment: 2 },
   teachingCompleted: ['medication'],
@@ -109,7 +109,7 @@ function parseInput(body: unknown): AssessmentInput | null {
   const b = body as Record<string, unknown>;
   const d = (b.domains ?? {}) as Record<string, unknown>;
 
-  const strFields = ['hn', 'patientName', 'age', 'assessmentDate', 'assessorName', 'caregiverPhone'] as const;
+  const strFields = ['hn', 'patientName', 'dob', 'assessmentDate', 'assessorName', 'caregiverPhone'] as const;
   for (const f of strFields) {
     if (typeof b[f] !== 'string' || (b[f] as string).trim() === '') return null;
   }
@@ -128,7 +128,7 @@ function parseInput(body: unknown): AssessmentInput | null {
   return {
     hn: (b.hn as string).trim(),
     patientName: (b.patientName as string).trim(),
-    age: (b.age as string).trim(),
+    dob: (b.dob as string).trim(),
     assessmentDate: (b.assessmentDate as string).trim(),
     assessorName: (b.assessorName as string).trim(),
     caregiverPhone: (b.caregiverPhone as string).trim(),

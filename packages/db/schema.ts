@@ -11,7 +11,7 @@ export const assessments = pgTable('assessments', {
   // Patient information
   hn: text('hn').notNull(), // Hospital Number
   patientName: text('patient_name').notNull(),
-  age: text('age').notNull(), // free-form (e.g. "8 months", "3 yr") — pediatric ages vary in unit
+  dob: text('dob').notNull(), // date of birth, YYYY-MM-DD — age is derived from this
   assessmentDate: text('assessment_date').notNull(), // YYYY-MM-DD
   assessorName: text('assessor_name').notNull(),
   caregiverPhone: text('caregiver_phone').notNull(),

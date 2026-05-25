@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Plus, RefreshCw } from 'lucide-react';
+import { Check, LayoutDashboard, Minus, Phone, Plus, RefreshCw } from 'lucide-react';
 
 import {
   Card,
@@ -21,6 +21,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
   Table,
   TableBody,
   TableCell,
@@ -29,7 +36,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RISK_META } from '@/lib/risk';
+import { cn } from '@/lib/utils';
+import { formatAge } from '@/lib/age';
+import { DOMAINS, RISK_META, TEACHING_ITEMS } from '@/lib/risk';
+import { buildFollowUpSchedule, FOLLOWUP_STATUS_META, type FollowUpStep } from '@/lib/followup';
 import type { PatientAssessment, RiskLevel } from '@/lib/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -55,6 +65,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<RiskFilter>('ALL');
+  const [selected, setSelected] = useState<PatientAssessment | null>(null);
 
   async function load() {
     setLoading(true);
@@ -189,7 +200,11 @@ export default function DashboardPage() {
                   filtered.map((p) => {
                     const meta = RISK_META[p.riskLevel];
                     return (
-                      <TableRow key={p.id}>
+                      <TableRow
+                        key={p.id}
+                        onClick={() => setSelected(p)}
+                        className="cursor-pointer"
+                      >
                         <TableCell className="font-medium">{p.hn}</TableCell>
                         <TableCell>{p.patientName}</TableCell>
                         <TableCell className="tabular-nums">{p.assessmentDate}</TableCell>
@@ -211,6 +226,163 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </main>
+
+      <PatientDetailSheet patient={selected} onClose={() => setSelected(null)} />
+    </div>
+  );
+}
+
+// ── Patient details slide-over ──────────────────────────────────────────────
+function PatientDetailSheet({
+  patient,
+  onClose,
+}: {
+  patient: PatientAssessment | null;
+  onClose: () => void;
+}) {
+  return (
+    <Sheet open={!!patient} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-md">
+        {patient && <PatientDetailBody patient={patient} />}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function PatientDetailBody({ patient }: { patient: PatientAssessment }) {
+  const meta = RISK_META[patient.riskLevel];
+  const schedule = buildFollowUpSchedule(patient.assessmentDate, patient.riskLevel);
+
+  return (
+    <>
+      {/* Header */}
+      <SheetHeader className="border-b bg-muted/40 p-6 pr-12">
+        <SheetTitle className="text-xl">{patient.patientName}</SheetTitle>
+        <SheetDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-medium text-foreground">{patient.hn}</span>
+          <span aria-hidden>·</span>
+          <span>{formatAge(patient.dob)}</span>
+        </SheetDescription>
+        <div className="pt-1">
+          <Badge variant={meta.badgeVariant} className="px-3 py-1 text-sm">
+            {meta.label} · {patient.totalScore}/12
+          </Badge>
+        </div>
+      </SheetHeader>
+
+      <div className="space-y-6 p-6">
+        {/* Contact */}
+        <Section title="Contact">
+          <DetailRow label="Caregiver's phone">
+            <a
+              href={`tel:${patient.caregiverPhone}`}
+              className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              {patient.caregiverPhone}
+            </a>
+          </DetailRow>
+          <DetailRow label="Assessment date">{patient.assessmentDate}</DetailRow>
+          <DetailRow label="Assessor">{patient.assessorName}</DetailRow>
+        </Section>
+
+        {/* Domain scores */}
+        <Section title="Assessment history">
+          <div className="space-y-2">
+            {DOMAINS.map((d) => {
+              const score = patient.domains[d.key];
+              const optionLabel = d.options.find((o) => o.value === score)?.label ?? '—';
+              return (
+                <div
+                  key={d.key}
+                  className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-card-foreground">{d.title}</p>
+                    <p className="truncate text-xs text-muted-foreground">{optionLabel}</p>
+                  </div>
+                  <Badge variant="muted" className="shrink-0">
+                    {score}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+
+        {/* Discharge teaching */}
+        <Section title="Discharge teaching">
+          <ul className="space-y-1.5">
+            {TEACHING_ITEMS.map((item) => {
+              const done = patient.teachingCompleted.includes(item.key);
+              return (
+                <li key={item.key} className="flex items-center gap-2.5 text-sm">
+                  <span
+                    className={cn(
+                      'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
+                      done ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground',
+                    )}
+                  >
+                    {done ? <Check className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className={done ? 'text-card-foreground' : 'text-muted-foreground'}>
+                    {item.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
+
+        {/* Follow-up schedule */}
+        <Section title="Follow-up schedule">
+          <div className="space-y-2">
+            <FollowUpRow step={schedule.call48to72} />
+            <FollowUpRow step={schedule.day7} />
+            <FollowUpRow step={schedule.nextAppointment} highlight />
+          </div>
+        </Section>
+      </div>
+    </>
+  );
+}
+
+function FollowUpRow({ step, highlight }: { step: FollowUpStep; highlight?: boolean }) {
+  const status = FOLLOWUP_STATUS_META[step.status];
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between gap-3 rounded-lg border p-3',
+        highlight && 'border-primary/40 bg-accent/40',
+      )}
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-card-foreground">{step.label}</p>
+        <p className="text-xs text-muted-foreground">{step.date ?? 'Not scheduled'}</p>
+      </div>
+      <Badge variant={status.badgeVariant} className="shrink-0">
+        {status.label}
+      </Badge>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-1.5 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right text-card-foreground">{children}</span>
     </div>
   );
 }

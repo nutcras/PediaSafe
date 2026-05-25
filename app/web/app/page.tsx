@@ -1,47 +1,43 @@
-'use client';
-
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import {
-  FileText,
-  Users,
-  CheckCircle2,
-  Settings,
-  Link2,
+  ClipboardList,
+  LayoutDashboard,
   ChevronRight,
-  CalendarCheck,
+  ShieldPlus,
   type LucideIcon,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 const LINKS: { href: string; icon: LucideIcon; title: string; desc: string; tint: string }[] = [
+  {
+    href: '/assessment',
+    icon: ClipboardList,
+    title: 'New Risk Assessment',
+    desc: 'Evaluate a patient and calculate readmission risk',
+    tint: 'bg-primary/15 text-primary',
+  },
+  {
+    href: '/dashboard',
+    icon: LayoutDashboard,
+    title: 'Monitoring Dashboard',
+    desc: 'Review assessed patients and follow-up actions',
+    tint: 'bg-success/15 text-success',
+  },
 ];
 
 export default function HomePage() {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    // Only a genuine LINE OAuth callback carries a one-time authorization `code`.
-    const { search, hash } = window.location;
-    if (/[?&]code=/.test(search)) {
-      window.location.replace(`/register${search}${hash}`);
-      return;
-    }
-    setReady(true);
-  }, []);
-
-  if (!ready) return null;
-
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-brand px-6 pb-10 pt-9 text-brand-foreground">
         <div className="mx-auto flex max-w-2xl items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <CalendarCheck className="h-6 w-6" />
+            <ShieldPlus className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">ระบบ PediaSafe</h1>
-            <p className="mt-0.5 text-sm text-brand-muted">เลือกเมนูที่ต้องการ</p>
+            <h1 className="text-xl font-bold tracking-tight">PediaSafe</h1>
+            <p className="mt-0.5 text-sm text-brand-muted">
+              Pneumonia Readmission Risk Assessment Tool
+            </p>
           </div>
         </div>
       </header>
@@ -64,7 +60,6 @@ export default function HomePage() {
             </Link>
           );
         })}
-
       </main>
     </div>
   );

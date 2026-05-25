@@ -11,20 +11,20 @@ This document covers:
 
 | Service | Image | Default host port | Description |
 |---|---|---|---|
-| `api` | `Dockerfile` (repo root) | `3100` | Hono API — LINE webhook, leave management |
-| `web` | `Dockerfile.web` (repo root) | `3101` | Next.js LIFF app — teacher registration |
+| `api` | `Dockerfile` (repo root) | `3100` | Hono API — assessment & patient endpoints |
+| `web` | `Dockerfile.web` (repo root) | `3101` | Next.js app — risk assessment form & monitoring dashboard |
 
 ### External networks
 
-`api` เชื่อมต่อกับ 3 external network ของ infrastructure stack ที่รันแยกอยู่:
+`api` connects to 3 external networks belonging to the infrastructure stack that runs separately:
 
-| Network name ใน compose | Docker network จริง | ใช้เข้าถึง |
+| Network name in compose | Actual Docker network | Used to reach |
 |---|---|---|
 | `db_net` | `api_smart-restaurant-network` | PostgreSQL |
 | `redis_net` | `redis_redis-network` | Redis |
 | `minio_net` | `minio_default` | MinIO object storage |
 
-`web` อยู่บน `default` network เท่านั้น (browser เรียก API ผ่าน host port โดยตรง)
+`web` is on the `default` network only (the browser calls the API directly via its host port).
 
 ---
 
@@ -40,10 +40,8 @@ Open `.env` and set at minimum:
 
 | Variable | Where to get it |
 |---|---|
-| `DATABASE_URL` | Connection string ชี้ไปที่ Postgres container ใน `db_net` |
-| `LINE_CHANNEL_SECRET` | LINE Developers Console → channel → Basic settings |
-| `LINE_CHANNEL_ACCESS_TOKEN` | Same page, under Messaging API |
-| `NEXT_PUBLIC_LIFF_ID` | LINE Developers Console → channel → LIFF tab |
+| `DATABASE_URL` | Connection string pointing at the Postgres container in `db_net` |
+| `NEXT_PUBLIC_API_URL` | Public URL of the API the browser will call |
 
 > **`NEXT_PUBLIC_*` are baked into the JS bundle at build time.**
 > If you change them after building you must run `docker compose build web` again.
@@ -72,15 +70,16 @@ On first start the `api` container will:
 2. Run all pending Drizzle migrations automatically via `entrypoint.sh`
 3. Start the Hono API on port 3000 (mapped to host `3100`)
 
-> **Prerequisite**: external networks (`api_smart-restaurant-network`, `redis_redis-network`, `minio_default`) must exist before running `docker compose up`. These are created by the infrastructure stacks (smart-restaurant, redis, minio). If they don't exist yet: `docker network create api_smart-restaurant-network` (or start the relevant stack first).
+> **Prerequisite**: external networks (`api_smart-restaurant-network`, `redis_redis-network`, `minio_default`) must exist before running `docker compose up`. These are created by the infrastructure stacks. If they don't exist yet: `docker network create api_smart-restaurant-network` (or start the relevant stack first).
 
 The `web` container starts the Next.js server on port 3000 (mapped to host `3101`).
 
 | URL | What |
 |---|---|
 | `http://localhost:3100` | API health check (`{"status":"ok"}`) |
-| `http://localhost:3100/webhook` | LINE webhook endpoint |
-| `http://localhost:3101/register` | LIFF teacher registration page |
+| `http://localhost:3100/api/patients` | List assessed patients |
+| `http://localhost:3101/assessment` | Risk assessment form |
+| `http://localhost:3101/dashboard` | Monitoring dashboard |
 
 ### 4. Stop
 
@@ -98,21 +97,15 @@ docker compose down -v       # also wipe the DB volume (full reset)
 Migrations run automatically every time the `api` container starts.
 The `docker/entrypoint.sh` script calls `bunx drizzle-kit migrate` before
 starting the API server. Running it multiple times is safe — Drizzle tracks
-applied migrations in a `__drizzle_migrations` table and skips already-applied
-ones.
+applied migrations and skips already-applied ones.
 
 ### Manual (standalone)
 
-Run migrations against any `DATABASE_URL` without starting the server:
-
 ```bash
-# Against the local docker-compose Postgres
-docker compose run --rm api sh -c "cd packages/db && bunx drizzle-kit migrate"
-
-# Or from your local machine (bun must be installed)
+# From your local machine (bun must be installed)
 DATABASE_URL="postgresql://..." bun db:migrate
 
-# Drizzle Studio (visual DB browser — only works locally with bun installed)
+# Drizzle Studio (visual DB browser)
 bun db:studio
 ```
 
@@ -134,7 +127,8 @@ Commit both the `.sql` file and the updated `meta/_journal.json`.
 ### Prerequisites
 
 - [Bun](https://bun.sh) ≥ 1.2
-- PostgreSQL instance (local or managed)
+- PostgreSQL instance (only needed for the real DB-backed flow; the API ships
+  with an in-memory mock store so the web app runs without a database)
 
 ### Setup
 
@@ -143,11 +137,8 @@ Commit both the `.sql` file and the updated `meta/_journal.json`.
 bun install
 
 # Copy env files
-cp .env.example .env           # root — used by docker-compose and drizzle scripts
-cp app/api/.env.example app/api/.env  # API local dev env (if it exists)
+cp .env.example .env                 # root — used by docker-compose and drizzle scripts
 cp app/web/.env.example app/web/.env.local
-
-# Edit .env and app/web/.env.local with real values
 ```
 
 ### Run each service
@@ -162,19 +153,6 @@ bun web:dev
 
 The API hot-reloads on file save via `bun --hot`. The web app uses Next.js fast refresh.
 
-### Expose the API to LINE (ngrok)
-
-LINE webhooks require a public HTTPS URL. During local development use ngrok:
-
-```bash
-ngrok http 3000
-```
-
-Copy the `https://<id>.ngrok.io` URL and set it in LINE Developers Console →
-Messaging API → Webhook URL: `https://<id>.ngrok.io/webhook`.
-
-See [LINE_SETUP.md](./LINE_SETUP.md) for the full setup walkthrough.
-
 ---
 
 ## Building individual images
@@ -183,15 +161,12 @@ See [LINE_SETUP.md](./LINE_SETUP.md) for the full setup walkthrough.
 
 ```bash
 # Build
-docker build -t lava-api:latest .
+docker build -t pediasafe-api:latest .
 
 # Run standalone
 docker run --rm -p 3100:3000 \
-  -e DATABASE_URL="postgresql://user:pass@host:5432/lava_db" \
-  -e LINE_CHANNEL_SECRET="..." \
-  -e LINE_CHANNEL_ACCESS_TOKEN="..." \
-  -e DASHBOARD_URL="https://your-web.example.com" \
-  lava-api:latest
+  -e DATABASE_URL="postgresql://user:pass@host:5432/pediasafe" \
+  pediasafe-api:latest
 ```
 
 ### Web
@@ -199,12 +174,11 @@ docker run --rm -p 3100:3000 \
 ```bash
 # Build (NEXT_PUBLIC_* must be provided at build time)
 docker build -f Dockerfile.web \
-  --build-arg NEXT_PUBLIC_LIFF_ID="1234567890-xxxxxxxx" \
   --build-arg NEXT_PUBLIC_API_URL="https://your-api.example.com" \
-  -t lava-web:latest .
+  -t pediasafe-web:latest .
 
 # Run standalone
-docker run --rm -p 3101:3000 lava-web:latest
+docker run --rm -p 3101:3000 pediasafe-web:latest
 ```
 
 ---
@@ -216,7 +190,6 @@ The Next.js web app deploys naturally to Vercel:
 1. Import the repo in [vercel.com/new](https://vercel.com/new)
 2. Set **Root Directory** to `app/web`
 3. Add environment variables in the Vercel dashboard:
-   - `NEXT_PUBLIC_LIFF_ID`
    - `NEXT_PUBLIC_API_URL` (your production API URL)
 4. Deploy — Vercel detects Next.js and builds automatically
 
@@ -233,14 +206,13 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u <username> --password-stdin
 
 SHA=$(git rev-parse --short HEAD)
 
-docker build -t ghcr.io/<org>/lava-api:$SHA .
-docker push ghcr.io/<org>/lava-api:$SHA
+docker build -t ghcr.io/<org>/pediasafe-api:$SHA .
+docker push ghcr.io/<org>/pediasafe-api:$SHA
 
 docker build -f Dockerfile.web \
-  --build-arg NEXT_PUBLIC_LIFF_ID="..." \
   --build-arg NEXT_PUBLIC_API_URL="..." \
-  -t ghcr.io/<org>/lava-web:$SHA .
-docker push ghcr.io/<org>/lava-web:$SHA
+  -t ghcr.io/<org>/pediasafe-web:$SHA .
+docker push ghcr.io/<org>/pediasafe-web:$SHA
 ```
 
 ---
@@ -249,19 +221,12 @@ docker push ghcr.io/<org>/lava-web:$SHA
 
 | Variable | Required | Used by | Notes |
 |---|---|---|---|
-| `DATABASE_URL` | ✅ | API | Postgres connection string |
-| `LINE_CHANNEL_SECRET` | ✅ | API | Webhook signature verification |
-| `LINE_CHANNEL_ACCESS_TOKEN` | ✅ | API | Sending messages via LINE API |
-| `DASHBOARD_URL` | ✅ | API | Base URL of the web app (for approval links) |
-| `NEXT_PUBLIC_LIFF_ID` | ✅ | Web (build) | LIFF ID — baked into JS bundle |
-| `NEXT_PUBLIC_API_URL` | ✅ | Web (build) | Public API URL — baked into JS bundle |
+| `DATABASE_URL` | ✅ (DB-backed flow) | API | Postgres connection string |
 | `PORT` | — | API, Web | Internal container port, defaults to `3000` |
+| `CORS_ORIGIN` | — | API | Comma-separated allowlist, defaults to `*` |
+| `NEXT_PUBLIC_API_URL` | ✅ | Web (build) | Public API URL — baked into the JS bundle |
 | `API_HOST_PORT` | — | docker-compose | Host port for API, defaults to `3100` |
 | `WEB_HOST_PORT` | — | docker-compose | Host port for Web, defaults to `3101` |
-| `DB_HOST_PORT` | — | docker-compose | Host port for Postgres, defaults to `5432` |
-| `POSTGRES_DB` | — | db service | Database name, defaults to `lava_db` |
-| `POSTGRES_USER` | — | db service | DB user, defaults to `postgres` |
-| `DATABASE_URL` hostname | — | — | ใช้ชื่อ container จาก `db_net` เป็น hostname เช่น `smart-restaurant-db:5432` |
 
 ---
 
@@ -271,8 +236,7 @@ docker push ghcr.io/<org>/lava-web:$SHA
 |---|---|
 | `entrypoint.sh: not found` or `^M: bad interpreter` | CRLF line endings. Add `* text=auto eol=lf` to `.gitattributes` or run `git config core.autocrlf input`. |
 | `FATAL: DATABASE_URL is not set` | Pass `-e DATABASE_URL=...` or use `--env-file`. |
-| `network api_smart-restaurant-network not found` | Infrastructure stack ยังไม่ได้ start หรือ network ยังไม่ได้ถูกสร้าง start stack นั้นก่อน หรือ `docker network create api_smart-restaurant-network` |
-| `bind: address already in use` | Another process is using the host port. Override via `API_HOST_PORT`, `WEB_HOST_PORT`, or `DB_HOST_PORT` in `.env`. |
-| LIFF shows wrong API URL after changing `NEXT_PUBLIC_API_URL` | `NEXT_PUBLIC_*` are baked at build time. Run `docker compose build web` then `docker compose up -d web`. |
-| Migrations hang | Network issue between `api` container and Postgres. Check `DATABASE_URL` hostname is reachable from inside the container. For docker-compose use `db` as the hostname. |
-| `Cannot find module '@lava/db'` | Workspace symlink not set up. Run `bun install` from the repo root. |
+| `network api_smart-restaurant-network not found` | Infrastructure stack not started, or the network was not created. Start that stack first or run `docker network create api_smart-restaurant-network`. |
+| `bind: address already in use` | Another process is using the host port. Override via `API_HOST_PORT` or `WEB_HOST_PORT` in `.env`. |
+| Web shows wrong API URL after changing `NEXT_PUBLIC_API_URL` | `NEXT_PUBLIC_*` are baked at build time. Run `docker compose build web` then `docker compose up -d web`. |
+| `Cannot find module '@pedia/db'` | Workspace symlink not set up. Run `bun install` from the repo root. |

@@ -5,36 +5,31 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import {
   Home,
-  FileText,
-  Users,
-  CheckCircle2,
-  Settings,
-  Link2,
+  ClipboardList,
+  LayoutDashboard,
+  ShieldPlus,
   Menu,
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { useRegistered } from '../lib/useLiff';
 import { cn } from '@/lib/utils';
 
-const NAV: { href: string; label: string; icon: LucideIcon }[] = [ 
+const NAV: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/', label: 'Home', icon: Home },
+  { href: '/assessment', label: 'New Assessment', icon: ClipboardList },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  // Don't run LIFF on the homepage (it has no shell and handles its own callback).
-  const registered = useRegistered(pathname !== '/');
 
   // The homepage is already a navigation hub → no shell chrome there.
   if (pathname === '/') return <>{children}</>;
 
-  // Hide "ลงทะเบียน" once the user is registered.
-  const items = NAV.filter((n) => n.href !== '/register' || registered !== true);
-
   const Links = ({ onNavigate }: { onNavigate?: () => void }) => (
     <nav className="flex flex-col gap-1 p-3">
-      {items.map((n) => {
+      {NAV.map((n) => {
         const active = pathname === n.href;
         const Icon = n.icon;
         return (
@@ -60,9 +55,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const Brand = () => (
     <div className="flex items-center gap-2 border-b border-white/10 px-4 py-4">
       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <CheckCircle2 className="h-[18px] w-[18px]" />
+        <ShieldPlus className="h-[18px] w-[18px]" />
       </div>
-      <span className="text-base font-bold tracking-tight text-brand-foreground">ระบบลางาน</span>
+      <span className="text-base font-bold tracking-tight text-brand-foreground">PediaSafe</span>
     </div>
   );
 
@@ -77,7 +72,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile hamburger */}
       <button
         type="button"
-        aria-label="เปิดเมนู"
+        aria-label="Open menu"
         onClick={() => setOpen(true)}
         className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-foreground shadow-sm md:hidden"
       >
@@ -93,10 +88,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           />
           <aside className="absolute inset-y-0 left-0 flex w-64 flex-col bg-brand shadow-xl">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <span className="text-base font-bold text-brand-foreground">ระบบลางาน</span>
+              <span className="text-base font-bold text-brand-foreground">PediaSafe</span>
               <button
                 type="button"
-                aria-label="ปิดเมนู"
+                aria-label="Close menu"
                 onClick={() => setOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-md text-brand-foreground/70 hover:bg-white/10 hover:text-brand-foreground"
               >

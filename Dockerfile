@@ -1,19 +1,16 @@
 # syntax=docker/dockerfile:1.7
 #
-# Multi-stage build for the @lava/api Hono server.
-# The build context is the monorepo root because @lava/api depends on the
-# workspace package @lava/db.
+# Multi-stage build for the @pedia/api Hono server.
+# The build context is the monorepo root because @pedia/api depends on the
+# workspace package @pedia/db.
 #
 # Build:
-#   docker build -t lava-api .
+#   docker build -t pediasafe-api .
 #
 # Run (example — see docs/DEPLOY.md):
 #   docker run --rm -p 3100:3000 \
 #     -e DATABASE_URL=... \
-#     -e LINE_CHANNEL_SECRET=... \
-#     -e LINE_CHANNEL_ACCESS_TOKEN=... \
-#     -e DASHBOARD_URL=... \
-#     lava-api
+#     pediasafe-api
 #
 # (Host port 3100 is just an example — the container always listens on 3000
 # internally. Remap to any free host port if 3100 is taken too.)
@@ -40,7 +37,7 @@ ENV NODE_ENV=production \
     PORT=3000
 
 # Bring deps over from the install stage. Bun workspaces hoist *everything*
-# into the root node_modules (with @lava/* as symlinks back to packages/* and
+# into the root node_modules (with @pedia/* as symlinks back to packages/* and
 # app/*), so a single COPY is enough — there are no per-package node_modules
 # directories on Linux.
 COPY --from=deps /app/node_modules ./node_modules
@@ -54,7 +51,7 @@ COPY packages/db ./packages/db
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Drop privileges. The oven/bun image ships with a non-root `bun` user (uid 1000).
+# Drop privileges. The oven/bun image ships with a non-root bun user (uid 1000).
 USER bun
 
 EXPOSE 3000

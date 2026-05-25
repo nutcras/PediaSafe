@@ -1,5 +1,5 @@
 #!/bin/sh
-# Container entrypoint for @lava/api.
+# Container entrypoint for @pedia/api.
 #
 # 1. Run Drizzle migrations against DATABASE_URL (idempotent — no-op if up to date).
 # 2. exec the CMD (the API server).

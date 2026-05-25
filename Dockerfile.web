@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 #
-# Multi-stage build for the @lava/web Next.js app.
-# Build context: monorepo root (same as Dockerfile for @lava/api) because
+# Multi-stage build for the @pedia/web Next.js app.
+# Build context: monorepo root (same as Dockerfile for @pedia/api) because
 # Bun workspaces hoist all node_modules to the root.
 #
 # ⚠️  NEXT_PUBLIC_* variables are baked into the JS bundle at BUILD time.
@@ -10,12 +10,11 @@
 #
 # Build:
 #   docker build -f Dockerfile.web \
-#     --build-arg NEXT_PUBLIC_LIFF_ID=... \
 #     --build-arg NEXT_PUBLIC_API_URL=... \
-#     -t lava-web .
+#     -t pediasafe-web .
 #
 # Run:
-#   docker run --rm -p 3101:3000 lava-web
+#   docker run --rm -p 3101:3000 pediasafe-web
 
 # ─── Stage 1: install workspace deps ────────────────────────────────────────
 FROM oven/bun:1.2-slim AS deps
@@ -40,10 +39,8 @@ COPY app/web ./app/web
 
 # NEXT_PUBLIC_* vars must be present at build time — they get inlined into the
 # client-side JS bundle by the Next.js compiler.
-ARG NEXT_PUBLIC_LIFF_ID
 ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_LIFF_ID=$NEXT_PUBLIC_LIFF_ID \
-    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_TELEMETRY_DISABLED=1
 
 # cd into the Next.js app directory so next build can resolve next.config.mjs
@@ -71,7 +68,7 @@ COPY --from=builder /app/app/web/.next         ./app/web/.next
 # Uncomment when a public/ directory is added:
 # COPY app/web/public ./app/web/public
 
-# Drop privileges (uid 1000, same as @lava/api image).
+# Drop privileges (uid 1000, same as @pedia/api image).
 USER bun
 
 EXPOSE 3000

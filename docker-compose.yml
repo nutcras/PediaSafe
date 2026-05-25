@@ -1,6 +1,6 @@
 services:
 
-  # ─── Hono API (@lava/api) ──────────────────────────────────────────────────
+  # ─── Hono API (@pedia/api) ─────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -13,24 +13,21 @@ services:
       NODE_ENV: production
       PORT: "3000"
       DATABASE_URL: "${DATABASE_URL}"
-      LINE_CHANNEL_SECRET: "${LINE_CHANNEL_SECRET}"
-      LINE_CHANNEL_ACCESS_TOKEN: "${LINE_CHANNEL_ACCESS_TOKEN}"
-      DASHBOARD_URL: "${DASHBOARD_URL}"
+      CORS_ORIGIN: "${CORS_ORIGIN:-*}"
     networks:
       - default
       - db_net
       - redis_net
       - minio_net
 
-  # ─── Next.js LIFF Web App (@lava/web) ─────────────────────────────────────
+  # ─── Next.js Web App (@pedia/web) ──────────────────────────────────────────
   web:
     build:
       context: .
       dockerfile: Dockerfile.web
       args:
-        # ⚠️  These are baked into the JS bundle at BUILD time.
-        #     Changing them here requires a rebuild (`docker compose build web`).
-        NEXT_PUBLIC_LIFF_ID: "${NEXT_PUBLIC_LIFF_ID}"
+        # ⚠️  This is baked into the JS bundle at BUILD time.
+        #     Changing it here requires a rebuild (`docker compose build web`).
         NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
     container_name: pediasafe-web
     restart: unless-stopped

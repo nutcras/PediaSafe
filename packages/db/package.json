@@ -1,0 +1,22 @@
+{
+  "name": "@lava/db",
+  "version": "0.0.1",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "bun seed.ts",
+    "db:reset": "bun reset.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.40.0",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0",
+    "typescript": "^5.8.0"
+  }
+}

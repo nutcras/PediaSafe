@@ -1,0 +1,25 @@
+log on server:
+{"tag":"line.event","type":"message","userId":"U80ea75dde157fa7cd8a54a38c296c197","timestamp":1779156076405,"messageType":"text"}
+{"tag":"line.message.text","userId":"U80ea75dde157fa7cd8a54a38c296c197","text":"ทดสอบ","timestamp":1779156076405}
+{"tag":"line.event","type":"message","userId":"U80ea75dde157fa7cd8a54a38c296c197","timestamp":1779156079243,"messageType":"text"}
+{"tag":"line.message.text","userId":"U80ea75dde157fa7cd8a54a38c296c197","text":"ลา","timestamp":1779156079243}
+{"tag":"line.event","type":"message","userId":"U80ea75dde157fa7cd8a54a38c296c197","timestamp":1779156100700,"messageType":"text"}
+{"tag":"line.message.text","userId":"U80ea75dde157fa7cd8a54a38c296c197","text":"แจ้งลา","timestamp":1779156100700}
+{"tag":"line.reply.request","replyToken":"06a974beb08d49fa85f5916597d301ff","messageCount":1,"messages":[{"type":"text","text":"รูปแบบการแจ้งลา:\nแจ้งลา [ป่วย|กิจ|พักร้อน] [DD/MM/YYYY] [DD/MM/YYYY] [เหตุผล]\n\nตัวอย่าง:\nแจ้งลา ป่วย 20/05/2026 21/05/2026 เป็นไข้"}]}
+{"tag":"line.reply.success","status":200,"body":"{\"sentMessages\":[{\"id\":\"614591025801068819\",\"quoteToken\":\"XXe6mtkGwcKkBw3jr_R4VWc_4NfHCAJErdfGRgbV4tP7ruLht5Uy61wLrPVnBIW5DOcAbdOZpdI8bR6M4EZtyMXJ1tebqyYN4xVMKb4S2Dp4vkveGh7sGG732kmUCMIaveH4TK2WNS5fYfgRJXLSog\"}]}"}
+{"tag":"line.event","type":"message","userId":"U80ea75dde157fa7cd8a54a38c296c197","timestamp":1779156130856,"messageType":"text"}
+{"tag":"line.message.text","userId":"U80ea75dde157fa7cd8a54a38c296c197","text":"แจ้งลา ป่วย 19/05/2026 เป็นไข้","timestamp":1779156130856}
+{"tag":"line.reply.request","replyToken":"074f2571e2074fa0b26bf5ca99c7c4bc","messageCount":1,"messages":[{"type":"text","text":"รูปแบบวันที่ไม่ถูกต้อง กรุณาใช้ DD/MM/YYYY เช่น 20/05/2026"}]}
+{"tag":"line.reply.success","status":200,"body":"{\"sentMessages\":[{\"id\":\"614591076216341084\",\"quoteToken\":\"SW3R9JuY4LdbBCxphXPLtTmxDF1khugXcojx-8p0HatQvrMMhy0XfEOcN9eaNpD88RG4_2RFzHoYtz-xrgjn4XuDYUcptMi4nkIoSH0xpFtpr3uvijb0YAzGwOgLWctnVo66WNdHxa3NoX_pVOz0Lg\"}]}"}
+{"tag":"line.event","type":"message","userId":"U80ea75dde157fa7cd8a54a38c296c197","timestamp":1779156184330,"messageType":"text"}
+{"tag":"line.message.text","userId":"U80ea75dde157fa7cd8a54a38c296c197","text":"แจ้งลา ป่วย 20/05/2026 เป็นไข้","timestamp":1779156184330}
+{"tag":"line.reply.request","replyToken":"14172d4178044a3f8826ef2bc301f538","messageCount":1,"messages":[{"type":"text","text":"รูปแบบวันที่ไม่ถูกต้อง กรุณาใช้ DD/MM/YYYY เช่น 20/05/2026"}]}
+{"tag":"line.reply.success","status":200,"body":"{\"sentMessages\":[{\"id\":\"614591165320397322\",\"quoteToken\":\"lnpvK7GxMk0Vmu9gdLdNiUEep_DjjstxYxGDYKlb7T-4O6JXXK4iYax2IFVO9tP6wT1zh-_jxcXo9pmg-CHvWpGOqjRZtt_9U-pyF-FCfKbNaX7-H3RGmQlvGcUH1MoTEkc6Q0V5ycR7HsX3eqUY-Q\"}]}"}
+
+
+
+
+{"tag":"line.event","type":"message","userId":"U80ea75dde157fa7cd8a54a38c296c197","timestamp":1779157055443,"messageType":"text"}
+{"tag":"line.message.text","userId":"U80ea75dde157fa7cd8a54a38c296c197","text":"แจ้งลา ป่วย 20/05/2026 เป็นไข้","timestamp":1779157055443}
+{"tag":"line.reply.request","replyToken":"e093e0e2f00f4bd8b6a778e956231ea7","messageCount":1,"messages":[{"type":"text","text":"ไม่พบข้อมูลของคุณในระบบ กรุณาติดต่อผู้ดูแลระบบ"}]}
+{"tag":"line.reply.success","status":200,"body":"{\"sentMessages\":[{\"id\":\"614592627320815620\",\"quoteToken\":\"h3OOeoVZDbxeV_XdYrAYFyDYRHXG5l064eGn7kR_g2lcEZxMi8ucaLrGQALsOcUTaEYsoVsTRWllSK9t6grsK0Lp7zh1SWT4WjPqIFYc4lPod0VX1S3HV1pnEq7qSVqlx9YXwg7WOWvVmOSK1w8GCQ\"}]}"}

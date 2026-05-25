@@ -1,0 +1,6 @@
+# Force LF line endings for files that must run inside Linux containers.
+# Without this, Windows checkouts can flip *.sh to CRLF and break the
+# Docker entrypoint with "bad interpreter" errors.
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+entrypoint* text eol=lf

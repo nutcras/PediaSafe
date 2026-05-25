@@ -1,0 +1,35 @@
+# Keep the build context tiny. Anything copied via Dockerfile from the
+# host is filtered through these patterns first.
+
+# Dependencies — re-installed in the deps stage.
+**/node_modules
+
+# Local environment & secrets — never bake into the image.
+.env
+.env.*
+!.env.example
+
+# Version control & editor scratch.
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# Build output (none today, but cheap to pre-empt).
+**/dist
+**/.next
+**/.turbo
+**/.cache
+
+# Docs & repo metadata not needed at runtime.
+README.md
+docs
+LICENSE
+
+# Docker meta itself.
+Dockerfile
+Dockerfile.*
+.dockerignore
+docker-compose*.yml

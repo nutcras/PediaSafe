@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm cream surface, navy ink. Palette: #111844 #4B5694 #7288AE #EAE0CF */
+    --background: 38 40% 96%;
+    --foreground: 232 55% 18%;
+
+    --card: 40 44% 99%;
+    --card-foreground: 232 55% 18%;
+
+    --popover: 40 44% 99%;
+    --popover-foreground: 232 55% 18%;
+
+    /* #4B5694 muted indigo */
+    --primary: 231 33% 44%;
+    --primary-foreground: 40 44% 98%;
+
+    /* #EAE0CF cream */
+    --secondary: 37 39% 86%;
+    --secondary-foreground: 232 55% 18%;
+
+    --muted: 38 34% 91%;
+    --muted-foreground: 220 16% 42%;
+
+    /* soft slate tint for hovers/highlights */
+    --accent: 222 30% 90%;
+    --accent-foreground: 232 55% 18%;
+
+    --destructive: 0 52% 50%;
+    --destructive-foreground: 40 44% 98%;
+
+    --success: 152 32% 38%;
+    --success-foreground: 40 44% 98%;
+
+    --warning: 34 55% 44%;
+    --warning-foreground: 40 44% 98%;
+
+    --border: 36 22% 82%;
+    --input: 36 22% 82%;
+    --ring: 231 33% 44%;
+
+    /* #111844 navy header / sidebar */
+    --brand: 232 55% 18%;
+    --brand-foreground: 38 40% 93%;
+    --brand-muted: 218 27% 74%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 232 40% 9%;
+    --foreground: 38 30% 90%;
+
+    --card: 232 34% 13%;
+    --card-foreground: 38 30% 90%;
+
+    --popover: 232 34% 13%;
+    --popover-foreground: 38 30% 90%;
+
+    --primary: 218 40% 64%;
+    --primary-foreground: 232 55% 14%;
+
+    --secondary: 232 24% 22%;
+    --secondary-foreground: 38 30% 90%;
+
+    --muted: 232 24% 20%;
+    --muted-foreground: 218 18% 64%;
+
+    --accent: 232 24% 24%;
+    --accent-foreground: 38 30% 90%;
+
+    --destructive: 0 50% 52%;
+    --destructive-foreground: 38 30% 92%;
+
+    --success: 152 30% 46%;
+    --success-foreground: 232 55% 12%;
+
+    --warning: 34 55% 56%;
+    --warning-foreground: 232 55% 12%;
+
+    --border: 232 22% 26%;
+    --input: 232 22% 26%;
+    --ring: 218 40% 64%;
+
+    --brand: 232 45% 12%;
+    --brand-foreground: 38 30% 90%;
+    --brand-muted: 218 22% 64%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* react-day-picker → theme via shadcn tokens */
+.rdp-root {
+  --rdp-accent-color: hsl(var(--primary));
+  --rdp-accent-background-color: hsl(var(--accent));
+  --rdp-today-color: hsl(var(--primary));
+}

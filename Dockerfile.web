@@ -1,0 +1,84 @@
+# syntax=docker/dockerfile:1.7
+#
+# Multi-stage build for the @lava/web Next.js app.
+# Build context: monorepo root (same as Dockerfile for @lava/api) because
+# Bun workspaces hoist all node_modules to the root.
+#
+# ⚠️  NEXT_PUBLIC_* variables are baked into the JS bundle at BUILD time.
+#     They cannot be changed via `docker run -e` — you must rebuild the image
+#     if the values change.
+#
+# Build:
+#   docker build -f Dockerfile.web \
+#     --build-arg NEXT_PUBLIC_LIFF_ID=... \
+#     --build-arg NEXT_PUBLIC_API_URL=... \
+#     -t lava-web .
+#
+# Run:
+#   docker run --rm -p 3101:3000 lava-web
+
+# ─── Stage 1: install workspace deps ────────────────────────────────────────
+FROM oven/bun:1.2-slim AS deps
+
+WORKDIR /app
+
+# Copy only manifests so the layer cache survives code-only edits.
+COPY package.json bun.lock tsconfig.base.json ./
+COPY app/web/package.json ./app/web/package.json
+
+RUN bun install
+
+# ─── Stage 2: build ──────────────────────────────────────────────────────────
+FROM oven/bun:1.2-slim AS builder
+
+# Start at monorepo root so hoisted node_modules are reachable.
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json bun.lock tsconfig.base.json ./
+COPY app/web ./app/web
+
+# NEXT_PUBLIC_* vars must be present at build time — they get inlined into the
+# client-side JS bundle by the Next.js compiler.
+ARG NEXT_PUBLIC_LIFF_ID
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_LIFF_ID=$NEXT_PUBLIC_LIFF_ID \
+    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_TELEMETRY_DISABLED=1
+
+# cd into the Next.js app directory so next build can resolve next.config.mjs
+# and writes .next/ into the correct location (/app/app/web/.next).
+# Using WORKDIR instead of --cwd avoids a Next.js resolution bug on Linux.
+WORKDIR /app/app/web
+RUN bunx next build
+
+# ─── Stage 3: runtime ────────────────────────────────────────────────────────
+FROM oven/bun:1.2-slim AS runtime
+
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    PORT=3000 \
+    NEXT_TELEMETRY_DISABLED=1
+
+# Bring the hoisted node_modules and the compiled Next.js output.
+# We skip the dev-only source files — only what `next start` needs.
+COPY --from=deps    /app/node_modules          ./node_modules
+COPY                package.json bun.lock      ./
+COPY                app/web/package.json       ./app/web/package.json
+COPY                app/web/next.config.mjs    ./app/web/next.config.mjs
+COPY --from=builder /app/app/web/.next         ./app/web/.next
+# Uncomment when a public/ directory is added:
+# COPY app/web/public ./app/web/public
+
+# Drop privileges (uid 1000, same as @lava/api image).
+USER bun
+
+EXPOSE 3000
+
+# next start respects the PORT env var; default is 3000 (set above).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD bun -e "fetch('http://127.0.0.1:'+process.env.PORT+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+WORKDIR /app/app/web
+CMD ["bunx", "next", "start"]

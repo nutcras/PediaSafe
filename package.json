@@ -1,0 +1,17 @@
+{
+  "name": "pedia-safe",
+  "workspaces": [
+    "app/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "db:generate": "bun run --cwd=packages/db --env-file=.env db:generate",
+    "db:migrate": "bun run --cwd=packages/db --env-file=.env db:migrate",
+    "db:seed": "bun run --cwd=packages/db --env-file=.env db:seed",
+    "db:reset": "bun run --cwd=packages/db --env-file=.env db:reset",
+    "db:studio": "bun run --cwd=packages/db --env-file=.env db:studio",
+    "api:dev": "bun run --cwd=app/api --env-file=.env dev",
+    "web:dev": "bun run --cwd=app/web dev",
+    "web:build": "bun run --cwd=app/web build"
+  }
+}

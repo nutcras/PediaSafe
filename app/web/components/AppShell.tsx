@@ -8,28 +8,43 @@ import {
   ClipboardList,
   LayoutDashboard,
   ShieldPlus,
+  Users,
+  LogOut,
   Menu,
   X,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth';
+import { Badge } from '@/components/ui/badge';
 
-const NAV: { href: string; label: string; icon: LucideIcon }[] = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  adminOnly?: boolean;
+}
+
+const NAV: NavItem[] = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/assessment', label: 'New Assessment', icon: ClipboardList },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin', label: 'User Management', icon: Users, adminOnly: true },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
 
-  // The homepage is already a navigation hub → no shell chrome there.
-  if (pathname === '/') return <>{children}</>;
+  // No shell chrome on the home hub or the login page.
+  if (pathname === '/' || pathname === '/login') return <>{children}</>;
+
+  const items = NAV.filter((n) => !n.adminOnly || user?.role === 'admin');
 
   const Links = ({ onNavigate }: { onNavigate?: () => void }) => (
     <nav className="flex flex-col gap-1 p-3">
-      {NAV.map((n) => {
+      {items.map((n) => {
         const active = pathname === n.href;
         const Icon = n.icon;
         return (
@@ -61,12 +76,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 
+  const UserFooter = () => {
+    if (!user) return null;
+    return (
+      <div className="mt-auto border-t border-white/10 p-3">
+        <div className="px-1 pb-2">
+          <p className="truncate text-sm font-medium text-brand-foreground">{user.name}</p>
+          <div className="mt-1 flex items-center gap-2">
+            <Badge variant={user.role === 'admin' ? 'warning' : 'secondary'}>
+              {user.role === 'admin' ? 'Admin' : 'Assessor'}
+            </Badge>
+            <span className="truncate text-xs text-brand-foreground/60">@{user.username}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={logout}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-brand-foreground/80 transition-colors hover:bg-white/10 hover:text-brand-foreground"
+        >
+          <LogOut className="h-[18px] w-[18px] shrink-0" />
+          Sign out
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="md:pl-60">
       {/* Desktop sidebar */}
       <aside className="hidden bg-brand md:fixed md:inset-y-0 md:left-0 md:flex md:w-60 md:flex-col">
         <Brand />
         <Links />
+        <UserFooter />
       </aside>
 
       {/* Mobile hamburger */}
@@ -99,6 +140,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </button>
             </div>
             <Links onNavigate={() => setOpen(false)} />
+            <UserFooter />
           </aside>
         </div>
       )}

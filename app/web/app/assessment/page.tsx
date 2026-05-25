@@ -21,6 +21,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { formatAge } from '@/lib/age';
 import {
   DOMAINS,
@@ -29,14 +31,11 @@ import {
 } from '@/lib/risk';
 import type { DomainKey } from '@/lib/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
-
 interface PatientInfo {
   hn: string;
   patientName: string;
   dob: string; // YYYY-MM-DD
   assessmentDate: string;
-  assessorName: string;
   caregiverPhone: string;
 }
 
@@ -45,7 +44,6 @@ const EMPTY_INFO: PatientInfo = {
   patientName: '',
   dob: '',
   assessmentDate: new Date().toISOString().slice(0, 10),
-  assessorName: '',
   caregiverPhone: '',
 };
 
@@ -66,6 +64,7 @@ function formatDateDisplay(iso: string): string {
 
 export default function AssessmentPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [info, setInfo] = useState<PatientInfo>(EMPTY_INFO);
   const [dobOpen, setDobOpen] = useState(false);
   const [assessmentOpen, setAssessmentOpen] = useState(false);
@@ -102,11 +101,13 @@ export default function AssessmentPage() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_URL}/api/assessments`, {
+      const res = await apiFetch('/api/assessments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...info,
+          // Sent for the record, but the server stamps the assessor from the JWT.
+          assessorName: user?.name,
           domains: {
             clinicalSeverity: domains.clinicalSeverity,
             hostFactors: domains.hostFactors,
@@ -256,10 +257,14 @@ export default function AssessmentPage() {
                 <Field id="assessorName" label="Assessor Name">
                   <Input
                     id="assessorName"
-                    value={info.assessorName}
-                    onChange={(e) => setField('assessorName', e.target.value)}
-                    placeholder="e.g. Nurse Ratchada"
+                    value={user?.name ?? ''}
+                    disabled
+                    readOnly
+                    aria-describedby="assessorHint"
                   />
+                  <p id="assessorHint" className="text-xs text-muted-foreground">
+                    Auto-filled from your account — recorded as the assessor.
+                  </p>
                 </Field>
                 <Field id="caregiverPhone" label="Caregiver's Phone Number">
                   <Input

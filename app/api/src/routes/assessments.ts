@@ -1,10 +1,13 @@
 import { Hono } from 'hono';
+import { authMiddleware, type AuthEnv } from '../middleware/auth';
+import { SEED_IDS } from '../store/users';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PediaSafe — Pneumonia Readmission Risk assessment API (in-memory mock).
 //
-// Endpoints (mounted under /api in src/index.ts):
-//   POST /api/assessments  → create an assessment (server computes score + risk)
+// Endpoints (mounted under /api in src/index.ts) — both require authentication:
+//   POST /api/assessments  → create an assessment (server computes score + risk,
+//                            and stamps the assessor from the JWT)
 //   GET  /api/patients     → list assessed patients (optional ?risk= filter)
 //
 // No database is required to run this mock — records live in a module-level array
@@ -20,21 +23,23 @@ export interface DomainScores {
   environment: number; // 0-3
 }
 
-// What the POST body must contain.
+// What the POST body must contain. The assessor is NOT taken from the body —
+// it is stamped server-side from the authenticated user (see POST handler).
 export interface AssessmentInput {
   hn: string;
   patientName: string;
   dob: string; // date of birth, YYYY-MM-DD — age is derived from this
   assessmentDate: string; // YYYY-MM-DD
-  assessorName: string;
   caregiverPhone: string;
   domains: DomainScores;
   teachingCompleted: string[]; // completed discharge-teaching item keys
 }
 
-// A stored/returned record = input + server-derived fields.
+// A stored/returned record = input + the authenticated assessor + derived fields.
 export interface PatientAssessment extends AssessmentInput {
   id: number;
+  assessorName: string;
+  assessorId: string;
   totalScore: number; // 0-12
   riskLevel: RiskLevel;
   followUpAction: string;
@@ -67,12 +72,14 @@ export function followUpFor(risk: RiskLevel): string {
 let nextId = 1;
 const store: PatientAssessment[] = [];
 
-function seed(input: AssessmentInput): void {
+function seed(input: AssessmentInput, assessor: { id: string; name: string }): void {
   const score = totalScore(input.domains);
   const risk = riskFromScore(score);
   store.push({
     ...input,
     id: nextId++,
+    assessorName: assessor.name,
+    assessorId: assessor.id,
     totalScore: score,
     riskLevel: risk,
     followUpAction: followUpFor(risk),
@@ -80,24 +87,26 @@ function seed(input: AssessmentInput): void {
   });
 }
 
+const NURSE = { id: SEED_IDS.assessor, name: 'Nurse Ratchada' };
+
 seed({
   hn: 'HN-67-0012', patientName: 'Nong Mali', dob: '2024-05-20',
-  assessmentDate: '2026-05-20', assessorName: 'Nurse Ratchada', caregiverPhone: '081-234-5678',
+  assessmentDate: '2026-05-20', caregiverPhone: '081-234-5678',
   domains: { clinicalSeverity: 0, hostFactors: 1, caregiverCompetency: 0, environment: 1 },
   teachingCompleted: ['medication', 'danger_signs', 'tepid_sponging', 'chest_percussion', 'avoid_smoking'],
-});
+}, NURSE);
 seed({
   hn: 'HN-67-0033', patientName: 'Nong Phume', dob: '2025-09-22',
-  assessmentDate: '2026-05-22', assessorName: 'Nurse Ratchada', caregiverPhone: '089-555-1212',
+  assessmentDate: '2026-05-22', caregiverPhone: '089-555-1212',
   domains: { clinicalSeverity: 2, hostFactors: 2, caregiverCompetency: 1, environment: 1 },
   teachingCompleted: ['medication', 'danger_signs'],
-});
+}, NURSE);
 seed({
   hn: 'HN-67-0041', patientName: 'Nong Achara', dob: '2022-05-23',
-  assessmentDate: '2026-05-23', assessorName: 'Nurse Somchai', caregiverPhone: '062-777-8899',
+  assessmentDate: '2026-05-23', caregiverPhone: '062-777-8899',
   domains: { clinicalSeverity: 3, hostFactors: 3, caregiverCompetency: 2, environment: 2 },
   teachingCompleted: ['medication'],
-});
+}, NURSE);
 
 // ── Validation ───────────────────────────────────────────────────────────────
 function isDomainScore(v: unknown): v is number {
@@ -109,7 +118,7 @@ function parseInput(body: unknown): AssessmentInput | null {
   const b = body as Record<string, unknown>;
   const d = (b.domains ?? {}) as Record<string, unknown>;
 
-  const strFields = ['hn', 'patientName', 'dob', 'assessmentDate', 'assessorName', 'caregiverPhone'] as const;
+  const strFields = ['hn', 'patientName', 'dob', 'assessmentDate', 'caregiverPhone'] as const;
   for (const f of strFields) {
     if (typeof b[f] !== 'string' || (b[f] as string).trim() === '') return null;
   }
@@ -130,7 +139,6 @@ function parseInput(body: unknown): AssessmentInput | null {
     patientName: (b.patientName as string).trim(),
     dob: (b.dob as string).trim(),
     assessmentDate: (b.assessmentDate as string).trim(),
-    assessorName: (b.assessorName as string).trim(),
     caregiverPhone: (b.caregiverPhone as string).trim(),
     domains: {
       clinicalSeverity: d.clinicalSeverity as number,
@@ -142,22 +150,27 @@ function parseInput(body: unknown): AssessmentInput | null {
   };
 }
 
-// ── Router ───────────────────────────────────────────────────────────────────
-export const api = new Hono();
+// ── Router (all routes require a valid bearer token) ──────────────────────────
+export const api = new Hono<AuthEnv>();
 
-// POST /api/assessments — create a new assessment.
-api.post('/assessments', async (c) => {
+// POST /api/assessments — create a new assessment. The assessor is taken from the
+// authenticated user, NOT the request body, so a disabled client field can't be
+// spoofed.
+api.post('/assessments', authMiddleware, async (c) => {
   const body = await c.req.json().catch(() => null);
   const input = parseInput(body);
   if (!input) {
     return c.json({ error: 'Invalid assessment body. Check required fields and domain scores (0-3).' }, 400);
   }
 
+  const user = c.get('user');
   const score = totalScore(input.domains);
   const risk = riskFromScore(score);
   const record: PatientAssessment = {
     ...input,
     id: nextId++,
+    assessorName: user.name,
+    assessorId: user.sub,
     totalScore: score,
     riskLevel: risk,
     followUpAction: followUpFor(risk),
@@ -171,7 +184,7 @@ api.post('/assessments', async (c) => {
 // GET /api/patients — list assessed patients.
 //   ?risk=HIGH            → single tier
 //   ?risk=MODERATE,HIGH   → multiple tiers (comma-separated)
-api.get('/patients', (c) => {
+api.get('/patients', authMiddleware, (c) => {
   const riskParam = c.req.query('risk');
   let patients = [...store].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 

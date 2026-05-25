@@ -37,12 +37,11 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
 import { formatAge } from '@/lib/age';
 import { DOMAINS, RISK_META, TEACHING_ITEMS } from '@/lib/risk';
 import { buildFollowUpSchedule, FOLLOWUP_STATUS_META, type FollowUpStep } from '@/lib/followup';
 import type { PatientAssessment, RiskLevel } from '@/lib/types';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 type RiskFilter = 'ALL' | RiskLevel | 'MODERATE_HIGH';
 
@@ -71,7 +70,7 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/patients`);
+      const res = await apiFetch('/api/patients');
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const data = (await res.json()) as { patients: PatientAssessment[] };
       setPatients(data.patients);

@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { api } from './routes/assessments';
+import { auth } from './routes/auth';
+import { adminRoutes } from './routes/admin';
 
 const app = new Hono();
 
@@ -14,12 +16,17 @@ const corsOrigins = (process.env.CORS_ORIGIN ?? '*')
 app.use('*', cors({
   origin: corsOrigins.length === 1 && corsOrigins[0] === '*' ? '*' : corsOrigins,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type'],
+  allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.get('/', (c) => c.json({ status: 'ok', service: 'pediasafe-api' }));
 
-// /api/assessments (POST) and /api/patients (GET)
+// Auth (public login + protected /me) and admin-only routes (mounted first so
+// their specific paths resolve before the general /api router).
+app.route('/api/auth', auth);
+app.route('/api/admin', adminRoutes);
+
+// /api/assessments (POST) and /api/patients (GET) — both require a bearer token.
 app.route('/api', api);
 
 export default {

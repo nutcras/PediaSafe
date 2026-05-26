@@ -4,17 +4,18 @@
 # Build context: monorepo root (same as Dockerfile for @pedia/api) because
 # Bun workspaces hoist all node_modules to the root.
 #
-# ⚠️  NEXT_PUBLIC_* variables are baked into the JS bundle at BUILD time.
-#     They cannot be changed via `docker run -e` — you must rebuild the image
-#     if the values change.
+# ⚠️  next.config.mjs rewrites() reads INTERNAL_API_URL at build time, so it must
+#     be passed as a build arg. It is ALSO needed at runtime (server-side fetches
+#     in lib/api.ts), supplied via the container environment by docker-compose.
 #
 # Build:
 #   docker build -f Dockerfile.web \
-#     --build-arg NEXT_PUBLIC_API_URL=... \
+#     --build-arg INTERNAL_API_URL=http://pediasafe-api-server:3000 \
 #     -t pediasafe-web .
 #
 # Run:
-#   docker run --rm -p 3101:3000 pediasafe-web
+#   docker run --rm -p 3101:3000 \
+#     -e INTERNAL_API_URL=http://pediasafe-api-server:3000 pediasafe-web
 
 # ─── Stage 1: install workspace deps ────────────────────────────────────────
 FROM oven/bun:1.2-slim AS deps
@@ -37,10 +38,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json bun.lock tsconfig.base.json ./
 COPY app/web ./app/web
 
-# NEXT_PUBLIC_* vars must be present at build time — they get inlined into the
-# client-side JS bundle by the Next.js compiler.
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+# INTERNAL_API_URL must be present at build time — next.config.mjs rewrites()
+# bakes the /api proxy destination from it during `next build`.
+ARG INTERNAL_API_URL
+ENV INTERNAL_API_URL=$INTERNAL_API_URL \
     NEXT_TELEMETRY_DISABLED=1
 
 # cd into the Next.js app directory so next build can resolve next.config.mjs

@@ -1,34 +1,39 @@
 services:
 
   # ─── Hono API (@pedia/api) ─────────────────────────────────────────────────
+  # Internal-only: no host port is published. The web container reaches it over
+  # the shared bridge network via its container name (pediasafe-api-server).
   api:
     build:
       context: .
       dockerfile: Dockerfile        # multi-stage Bun image at repo root
     container_name: pediasafe-api-server
     restart: unless-stopped
-    ports:
-      - "${API_HOST_PORT:-3200}:3000"
+    expose:
+      - "3000"                      # visible to other containers on the network only
     environment:
       NODE_ENV: production
       PORT: "3000"
       DATABASE_URL: "${DATABASE_URL}"
       CORS_ORIGIN: "${CORS_ORIGIN:-*}"
+      JWT_SECRET: "${JWT_SECRET}"
     networks:
-      - default
+      - pediasafe_net               # shared with web for internal DNS
       - db_net
       - redis_net
       - minio_net
 
   # ─── Next.js Web App (@pedia/web) ──────────────────────────────────────────
+  # The only service published to the host. Acts as the proxy: browser → web
+  # (/api/*) → Hono API over the internal network (see next.config.mjs rewrites).
   web:
     build:
       context: .
       dockerfile: Dockerfile.web
       args:
-        # ⚠️  This is baked into the JS bundle at BUILD time.
-        #     Changing it here requires a rebuild (`docker compose build web`).
-        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
+        # Baked into the build so next.config rewrites() resolves the proxy
+        # target at `next build` time. Must match the API container name + port.
+        INTERNAL_API_URL: "${INTERNAL_API_URL:-http://pediasafe-api-server:3000}"
     container_name: pediasafe-web
     restart: unless-stopped
     ports:
@@ -36,16 +41,20 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
+      # Runtime target for server-side fetches (lib/api.ts) — same value.
+      INTERNAL_API_URL: "${INTERNAL_API_URL:-http://pediasafe-api-server:3000}"
     depends_on:
       - api
     networks:
-      - default
+      - pediasafe_net
 
 networks:
-  # Network ของตัวเอง
-  default:
+  # Custom bridge shared by web + api so Docker's embedded DNS lets the web
+  # container resolve "pediasafe-api-server" to the API container.
+  pediasafe_net:
+    driver: bridge
 
-  # เชื่อมต่อไปยัง Network ภายนอกที่ Container อื่นๆ รันอยู่
+  # External infrastructure networks the API connects out to.
   db_net:
     external: true
     name: api_smart-restaurant-network

@@ -25,8 +25,7 @@ interface NavItem {
   adminOnly?: boolean;
 }
 
-const NAV: NavItem[] = [
-  { href: '/', label: 'Home', icon: Home },
+const NAV: NavItem[] = [ 
   { href: '/assessment', label: 'New Assessment', icon: ClipboardList },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin', label: 'User Management', icon: Users, adminOnly: true },

@@ -2,7 +2,24 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Check, LayoutDashboard, Minus, Phone, Plus, RefreshCw } from 'lucide-react';
+import {
+  Check,
+  CheckCircle2,
+  ClipboardEdit,
+  LayoutDashboard,
+  Loader2,
+  MessageSquareText,
+  Minus,
+  Phone,
+  Pill,
+  Plus,
+  RefreshCw,
+  Stethoscope,
+  Thermometer,
+  Wind,
+  type LucideIcon,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   Card,
@@ -13,6 +30,13 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -35,13 +59,32 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
 import { formatAge } from '@/lib/age';
-import { DOMAINS, RISK_META, TEACHING_ITEMS } from '@/lib/risk';
-import { buildFollowUpSchedule, FOLLOWUP_STATUS_META, type FollowUpStep } from '@/lib/followup';
-import type { PatientAssessment, RiskLevel } from '@/lib/types';
+import {
+  DOMAINS,
+  RISK_META,
+  TEACHING_ITEMS,
+  teachingStatusFor,
+  type TeachingStatus,
+} from '@/lib/risk';
+import {
+  buildFollowUpSchedule,
+  computeNextFollowUp,
+  FOLLOWUP_STATUS_META,
+  NEXT_FOLLOWUP_STATUS_META,
+  SYMPTOM_OPTIONS,
+  type FollowUpStep,
+} from '@/lib/followup';
+import type {
+  FollowUpEntry,
+  FollowUpSymptom,
+  PatientAssessment,
+  RiskLevel,
+} from '@/lib/types';
 
 type RiskFilter = 'ALL' | RiskLevel | 'MODERATE_HIGH';
 
@@ -53,10 +96,26 @@ const FILTER_OPTIONS: { value: RiskFilter; label: string }[] = [
   { value: 'MODERATE_HIGH', label: 'Moderate & High risk' },
 ];
 
+const SYMPTOM_ICONS: Record<FollowUpSymptom, LucideIcon> = {
+  normal: CheckCircle2,
+  fever: Thermometer,
+  dyspnea: Wind,
+  incomplete_meds: Pill,
+  early_doctor_visit: Stethoscope,
+};
+
 function matchesFilter(level: RiskLevel, filter: RiskFilter): boolean {
   if (filter === 'ALL') return true;
   if (filter === 'MODERATE_HIGH') return level === 'MODERATE' || level === 'HIGH';
   return level === filter;
+}
+
+function formatDateDisplay(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 export default function DashboardPage() {
@@ -65,6 +124,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<RiskFilter>('ALL');
   const [selected, setSelected] = useState<PatientAssessment | null>(null);
+  const [logging, setLogging] = useState<PatientAssessment | null>(null);
 
   async function load() {
     setLoading(true);
@@ -95,6 +155,12 @@ export default function DashboardPage() {
     for (const p of patients) c[p.riskLevel]++;
     return c;
   }, [patients]);
+
+  // Replace a patient in the list (after a follow-up is logged).
+  function upsertPatient(updated: PatientAssessment) {
+    setPatients((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setSelected((prev) => (prev?.id === updated.id ? updated : prev));
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -167,16 +233,18 @@ export default function DashboardPage() {
                   <TableHead>HN</TableHead>
                   <TableHead>Patient Name</TableHead>
                   <TableHead>Assessment Date</TableHead>
-                  <TableHead className="text-center">Total Score</TableHead>
-                  <TableHead>Risk Level</TableHead>
-                  <TableHead>Next Follow-up Action</TableHead>
+                  <TableHead className="text-center">Score</TableHead>
+                  <TableHead>Risk</TableHead>
+                  <TableHead>Next Follow-up</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 6 }).map((__, j) => (
+                      {Array.from({ length: 8 }).map((__, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-5 w-full" />
                         </TableCell>
@@ -185,19 +253,26 @@ export default function DashboardPage() {
                   ))
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-destructive">
+                    <TableCell colSpan={8} className="py-10 text-center text-destructive">
                       {error}
                     </TableCell>
                   </TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                       No patients match this filter.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((p) => {
                     const meta = RISK_META[p.riskLevel];
+                    const next = computeNextFollowUp(
+                      p.assessmentDate,
+                      p.riskLevel,
+                      p.followUps ?? [],
+                      p.nextAppointmentDate,
+                    );
+                    const statusMeta = NEXT_FOLLOWUP_STATUS_META[next.status];
                     return (
                       <TableRow
                         key={p.id}
@@ -213,8 +288,37 @@ export default function DashboardPage() {
                         <TableCell>
                           <Badge variant={meta.badgeVariant}>{meta.label}</Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {p.followUpAction}
+                        <TableCell className="text-sm tabular-nums">
+                          {next.date ? (
+                            <span className="flex flex-col">
+                              <span className="font-medium text-card-foreground">
+                                {formatDateDisplay(next.date)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                Round {next.round}
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusMeta.badgeVariant}>
+                            {statusMeta.thaiLabel}
+                          </Badge>
+                        </TableCell>
+                        <TableCell
+                          className="text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setLogging(p)}
+                          >
+                            <ClipboardEdit className="h-4 w-4" />
+                            Log
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -227,6 +331,11 @@ export default function DashboardPage() {
       </main>
 
       <PatientDetailSheet patient={selected} onClose={() => setSelected(null)} />
+      <LogFollowUpDialog
+        patient={logging}
+        onClose={() => setLogging(null)}
+        onLogged={upsertPatient}
+      />
     </div>
   );
 }
@@ -250,7 +359,14 @@ function PatientDetailSheet({
 
 function PatientDetailBody({ patient }: { patient: PatientAssessment }) {
   const meta = RISK_META[patient.riskLevel];
-  const schedule = buildFollowUpSchedule(patient.assessmentDate, patient.riskLevel);
+  const schedule = buildFollowUpSchedule(
+    patient.assessmentDate,
+    patient.riskLevel,
+    patient.followUps ?? [],
+    patient.nextAppointmentDate,
+  );
+  const teachBack = patient.teachBack;
+  const showTeachBack = patient.riskLevel !== 'LOW';
 
   return (
     <>
@@ -282,7 +398,12 @@ function PatientDetailBody({ patient }: { patient: PatientAssessment }) {
             </a>
           </DetailRow>
           <DetailRow label="Assessment date">{patient.assessmentDate}</DetailRow>
-          <DetailRow label="Assessor">{patient.assessorName}</DetailRow>
+          <DetailRow label="Assessor">
+            {patient.assessorName}
+            <span className="block text-xs text-muted-foreground">
+              {patient.assessorRole === 'admin' ? 'Manager' : 'Pediatric Nurse'}
+            </span>
+          </DetailRow>
         </Section>
 
         {/* Domain scores */}
@@ -309,29 +430,59 @@ function PatientDetailBody({ patient }: { patient: PatientAssessment }) {
           </div>
         </Section>
 
-        {/* Discharge teaching */}
+        {/* Discharge teaching — 3-state */}
         <Section title="Discharge teaching">
           <ul className="space-y-1.5">
             {TEACHING_ITEMS.map((item) => {
-              const done = patient.teachingCompleted.includes(item.key);
+              const status = teachingStatusFor(
+                item.key,
+                patient.teachingCompleted ?? [],
+                patient.teachingNA ?? [],
+              );
               return (
                 <li key={item.key} className="flex items-center gap-2.5 text-sm">
+                  <StatusDot status={status} />
                   <span
                     className={cn(
-                      'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
-                      done ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground',
+                      status === 'TAUGHT' && 'text-card-foreground',
+                      status === 'NA' && 'text-muted-foreground italic',
+                      status === 'NOT_DONE' && 'text-muted-foreground',
                     )}
                   >
-                    {done ? <Check className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
-                  </span>
-                  <span className={done ? 'text-card-foreground' : 'text-muted-foreground'}>
                     {item.label}
                   </span>
+                  {status === 'NA' && (
+                    <Badge variant="muted" className="ml-auto">N/A</Badge>
+                  )}
                 </li>
               );
             })}
           </ul>
         </Section>
+
+        {/* Teach-back */}
+        {showTeachBack && teachBack && (
+          <Section title="Teach-back">
+            {teachBack.performed ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={teachBack.result === 'PASS' ? 'success' : 'destructive'}
+                  >
+                    {teachBack.result === 'PASS' ? 'Passed' : 'Did not pass'}
+                  </Badge>
+                </div>
+                {teachBack.note && (
+                  <p className="rounded-lg bg-muted/50 p-3 text-sm text-card-foreground">
+                    {teachBack.note}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Not yet performed.</p>
+            )}
+          </Section>
+        )}
 
         {/* Follow-up schedule */}
         <Section title="Follow-up schedule">
@@ -340,6 +491,19 @@ function PatientDetailBody({ patient }: { patient: PatientAssessment }) {
             <FollowUpRow step={schedule.day7} />
             <FollowUpRow step={schedule.nextAppointment} highlight />
           </div>
+        </Section>
+
+        {/* Follow-up history */}
+        <Section title="Follow-up contacts">
+          {(patient.followUps ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No contacts logged yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {patient.followUps.map((entry) => (
+                <FollowUpHistoryRow key={entry.id} entry={entry} />
+              ))}
+            </ul>
+          )}
         </Section>
       </div>
     </>
@@ -366,6 +530,59 @@ function FollowUpRow({ step, highlight }: { step: FollowUpStep; highlight?: bool
   );
 }
 
+function FollowUpHistoryRow({ entry }: { entry: FollowUpEntry }) {
+  const symptom = SYMPTOM_OPTIONS.find((s) => s.key === entry.symptomsStatus);
+  const Icon = SYMPTOM_ICONS[entry.symptomsStatus];
+  return (
+    <li className="rounded-lg border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Round {entry.round}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {new Date(entry.followUpDate).toLocaleString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
+        </div>
+        <Badge variant={symptom?.variant ?? 'muted'} className="shrink-0">
+          <Icon className="h-3 w-3" />
+          {symptom?.thaiLabel ?? entry.symptomsStatus}
+        </Badge>
+      </div>
+      {entry.note && (
+        <p className="mt-2 text-sm text-card-foreground">{entry.note}</p>
+      )}
+      <p className="mt-1 text-xs text-muted-foreground">by {entry.assessorName}</p>
+    </li>
+  );
+}
+
+function StatusDot({ status }: { status: TeachingStatus }) {
+  if (status === 'TAUGHT') {
+    return (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+        <Check className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  if (status === 'NA') {
+    return (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <Minus className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  return (
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/40" />
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
@@ -383,5 +600,144 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right text-card-foreground">{children}</span>
     </div>
+  );
+}
+
+// ── Log Follow-up dialog ────────────────────────────────────────────────────
+function LogFollowUpDialog({
+  patient,
+  onClose,
+  onLogged,
+}: {
+  patient: PatientAssessment | null;
+  onClose: () => void;
+  onLogged: (p: PatientAssessment) => void;
+}) {
+  const [symptom, setSymptom] = useState<FollowUpSymptom | null>(null);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Reset state whenever the dialog opens for a new patient.
+  useEffect(() => {
+    if (patient) {
+      setSymptom(null);
+      setNote('');
+    }
+  }, [patient?.id]);
+
+  if (!patient) return null;
+
+  const nextRound = (patient.followUps?.length ?? 0) + 1;
+
+  async function submit() {
+    if (!symptom || !patient) return;
+    setSaving(true);
+    try {
+      const res = await apiFetch(`/api/patients/${patient.id}/follow-ups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symptomsStatus: symptom,
+          note,
+          followUpDate: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Request failed (${res.status})`);
+      }
+      const data = (await res.json()) as { patient: PatientAssessment };
+      onLogged(data.patient);
+      toast.success(`Follow-up round ${nextRound} saved`);
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save follow-up');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!patient} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Log follow-up — {patient.patientName}</DialogTitle>
+          <DialogDescription>
+            Round {nextRound} · {patient.hn} ·{' '}
+            <Badge variant={RISK_META[patient.riskLevel].badgeVariant} className="ml-1">
+              {RISK_META[patient.riskLevel].label}
+            </Badge>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Symptoms (เลือกอาการ)
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {SYMPTOM_OPTIONS.map((opt) => {
+                const Icon = SYMPTOM_ICONS[opt.key];
+                const selected = symptom === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setSymptom(opt.key)}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 rounded-lg border p-3 text-sm transition-colors',
+                      selected
+                        ? 'border-primary bg-accent text-foreground shadow-sm'
+                        : 'border-border bg-card hover:bg-muted/40',
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        'h-6 w-6',
+                        opt.variant === 'success' && 'text-success',
+                        opt.variant === 'warning' && 'text-warning',
+                        opt.variant === 'destructive' && 'text-destructive',
+                      )}
+                    />
+                    <span className="text-xs font-medium leading-tight">{opt.thaiLabel}</span>
+                    <span className="text-[10px] text-muted-foreground">{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="follow-up-note"
+              className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              Notes (บันทึกเพิ่มเติม)
+            </label>
+            <Textarea
+              id="follow-up-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Caregiver reports fever 38.2°C since yesterday."
+              rows={3}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={!symptom || saving}>
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageSquareText className="h-4 w-4" />
+            )}
+            {saving ? 'Saving…' : 'Save follow-up'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

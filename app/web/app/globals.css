@@ -4,90 +4,98 @@
 
 @layer base {
   :root {
-    /* Warm cream surface, navy ink. Palette: #111844 #4B5694 #7288AE #EAE0CF */
-    --background: 38 40% 96%;
-    --foreground: 232 55% 18%;
+    /* Pediatric ward palette — bright sky/mint surface, friendly teal-blue brand.
+       Designed to read as cheerful but calm: soft sky background, fresh mint
+       accents, sunny amber warnings. */
 
-    --card: 40 44% 99%;
-    --card-foreground: 232 55% 18%;
+    /* Soft sky background, deep teal-navy ink. */
+    --background: 200 60% 97%;
+    --foreground: 210 50% 18%;
 
-    --popover: 40 44% 99%;
-    --popover-foreground: 232 55% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 50% 18%;
 
-    /* #4B5694 muted indigo */
-    --primary: 231 33% 44%;
-    --primary-foreground: 40 44% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 50% 18%;
 
-    /* #EAE0CF cream */
-    --secondary: 37 39% 86%;
-    --secondary-foreground: 232 55% 18%;
+    /* Friendly sky-blue primary — bright but not harsh. */
+    --primary: 200 78% 46%;
+    --primary-foreground: 0 0% 100%;
 
-    --muted: 38 34% 91%;
-    --muted-foreground: 220 16% 42%;
+    /* Soft mint secondary — pediatric-feel accent. */
+    --secondary: 160 55% 88%;
+    --secondary-foreground: 175 55% 20%;
 
-    /* soft slate tint for hovers/highlights */
-    --accent: 222 30% 90%;
-    --accent-foreground: 232 55% 18%;
+    --muted: 200 40% 94%;
+    --muted-foreground: 210 18% 42%;
 
-    --destructive: 0 52% 50%;
-    --destructive-foreground: 40 44% 98%;
+    /* Pale sky accent for hovers / selected states. */
+    --accent: 195 75% 90%;
+    --accent-foreground: 210 50% 18%;
 
-    --success: 152 32% 38%;
-    --success-foreground: 40 44% 98%;
+    /* Warm coral-red for destructive actions — softer than pure red. */
+    --destructive: 0 75% 56%;
+    --destructive-foreground: 0 0% 100%;
 
-    --warning: 34 55% 44%;
-    --warning-foreground: 40 44% 98%;
+    /* Cheerful green for success. */
+    --success: 152 55% 42%;
+    --success-foreground: 0 0% 100%;
 
-    --border: 36 22% 82%;
-    --input: 36 22% 82%;
-    --ring: 231 33% 44%;
+    /* Sunny amber for warnings. */
+    --warning: 35 92% 50%;
+    --warning-foreground: 0 0% 100%;
 
-    /* #111844 navy header / sidebar */
-    --brand: 232 55% 18%;
-    --brand-foreground: 38 40% 93%;
-    --brand-muted: 218 27% 74%;
+    --border: 200 35% 86%;
+    --input: 200 35% 86%;
+    --ring: 200 78% 46%;
 
-    --radius: 0.75rem;
+    /* Bright teal-blue brand header (replaces the navy chrome) — more inviting
+       for a children's ward while still reading as a healthcare app. */
+    --brand: 198 80% 32%;
+    --brand-foreground: 195 90% 96%;
+    --brand-muted: 195 50% 80%;
+
+    --radius: 0.875rem;
   }
 
   .dark {
-    --background: 232 40% 9%;
-    --foreground: 38 30% 90%;
+    --background: 210 45% 9%;
+    --foreground: 195 60% 92%;
 
-    --card: 232 34% 13%;
-    --card-foreground: 38 30% 90%;
+    --card: 210 40% 13%;
+    --card-foreground: 195 60% 92%;
 
-    --popover: 232 34% 13%;
-    --popover-foreground: 38 30% 90%;
+    --popover: 210 40% 13%;
+    --popover-foreground: 195 60% 92%;
 
-    --primary: 218 40% 64%;
-    --primary-foreground: 232 55% 14%;
+    --primary: 200 78% 60%;
+    --primary-foreground: 210 50% 14%;
 
-    --secondary: 232 24% 22%;
-    --secondary-foreground: 38 30% 90%;
+    --secondary: 175 30% 22%;
+    --secondary-foreground: 195 60% 92%;
 
-    --muted: 232 24% 20%;
-    --muted-foreground: 218 18% 64%;
+    --muted: 210 28% 20%;
+    --muted-foreground: 195 22% 70%;
 
-    --accent: 232 24% 24%;
-    --accent-foreground: 38 30% 90%;
+    --accent: 200 35% 24%;
+    --accent-foreground: 195 60% 92%;
 
-    --destructive: 0 50% 52%;
-    --destructive-foreground: 38 30% 92%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 152 30% 46%;
-    --success-foreground: 232 55% 12%;
+    --success: 152 50% 50%;
+    --success-foreground: 210 45% 12%;
 
-    --warning: 34 55% 56%;
-    --warning-foreground: 232 55% 12%;
+    --warning: 35 90% 58%;
+    --warning-foreground: 210 45% 12%;
 
-    --border: 232 22% 26%;
-    --input: 232 22% 26%;
-    --ring: 218 40% 64%;
+    --border: 210 28% 26%;
+    --input: 210 28% 26%;
+    --ring: 200 78% 60%;
 
-    --brand: 232 45% 12%;
-    --brand-foreground: 38 30% 90%;
-    --brand-muted: 218 22% 64%;
+    --brand: 200 60% 18%;
+    --brand-foreground: 195 60% 92%;
+    --brand-muted: 195 30% 70%;
   }
 }
 
@@ -99,6 +107,12 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* Subtle pediatric pastel gradient — adds warmth without distracting from
+       clinical content. */
+    background-image:
+      radial-gradient(circle at 0% 0%, hsl(var(--accent) / 0.6), transparent 40%),
+      radial-gradient(circle at 100% 0%, hsl(var(--secondary) / 0.55), transparent 45%);
+    background-attachment: fixed;
   }
 }
 

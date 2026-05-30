@@ -67,7 +67,21 @@ export const TEACHING_ITEMS: TeachingItem[] = [
   { key: 'tepid_sponging', label: 'Tepid sponging' },
   { key: 'chest_percussion', label: 'Chest percussion / Suction' },
   { key: 'avoid_smoking', label: 'Avoid smoking' },
+  { key: 'nebulizer', label: 'Nebulizer / Inhaler use' },
 ];
+
+// Per-item teaching outcome. Items missing from both lists count as "not done".
+export type TeachingStatus = 'TAUGHT' | 'NA' | 'NOT_DONE';
+
+export function teachingStatusFor(
+  key: string,
+  completed: string[],
+  na: string[],
+): TeachingStatus {
+  if (completed.includes(key)) return 'TAUGHT';
+  if (na.includes(key)) return 'NA';
+  return 'NOT_DONE';
+}
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
 export function totalScore(d: DomainScores): number {
